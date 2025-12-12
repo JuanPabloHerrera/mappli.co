@@ -1,65 +1,215 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useRef } from "react";
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <main className="relative min-h-screen w-screen overflow-hidden bg-background">
+      <Blob />
+      <div className="relative z-10 flex min-h-screen items-center justify-center px-6 text-center">
+        <div className="w-full max-w-xl">
+          <h1 className="text-5xl font-normal tracking-tight">mappli</h1>
+          <p className="mt-4 text-base font-normal leading-7 text-foreground/70">
+            The AI Marketplace community.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      </div>
+    </main>
+  );
+}
+
+function Blob() {
+  const bubbleRefs = useRef<Array<HTMLDivElement | null>>([null, null, null]);
+  const turbulenceRef = useRef<SVGFETurbulenceElement | null>(null);
+  const displacementRef = useRef<SVGFEDisplacementMapElement | null>(null);
+
+  const target = useRef({ x: 0, y: 0 });
+  const targetSmoothed = useRef({ x: 0, y: 0 });
+  const currents = useRef([
+    { x: 0, y: 0 },
+    { x: 0, y: 0 },
+    { x: 0, y: 0 },
+  ]);
+
+  const lastPointer = useRef({ x: 0, y: 0, t: 0 });
+  const speedInstant = useRef(0);
+  const speedSmoothed = useRef(0);
+  const water = useRef({ freqX: 0.01, freqY: 0.016, disp: 12 });
+
+  useEffect(() => {
+    const setCenter = () => {
+      target.current = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+      targetSmoothed.current = { ...target.current };
+      currents.current = [
+        { ...target.current },
+        { ...target.current },
+        { ...target.current },
+      ];
+      lastPointer.current = { ...target.current, t: performance.now() };
+      speedInstant.current = 0;
+      speedSmoothed.current = 0;
+    };
+
+    setCenter();
+
+    const onMove = (event: PointerEvent) => {
+      const now = performance.now();
+      const x = event.clientX;
+      const y = event.clientY;
+      target.current = { x, y };
+
+      const lp = lastPointer.current;
+      const dt = Math.max(8, now - lp.t);
+      const dist = Math.hypot(x - lp.x, y - lp.y);
+      speedInstant.current = dist / dt; // px/ms
+      lastPointer.current = { x, y, t: now };
+    };
+
+    window.addEventListener("pointermove", onMove, { passive: true });
+    window.addEventListener("resize", setCenter, { passive: true });
+
+    let rafId = 0;
+    const bubbleConfigs = [
+      { lag: 0.0375, drift: 24, phase: 0.0 },
+      { lag: 0.025, drift: 34, phase: 1.6 },
+      { lag: 0.019, drift: 44, phase: 3.1 },
+    ];
+
+    const follow = () => {
+      const turbulence = turbulenceRef.current;
+      const displacement = displacementRef.current;
+      const now = performance.now();
+
+      // Smooth the pointer target so movement "fades" rather than snapping.
+      const targetEase = 0.0425;
+      targetSmoothed.current.x +=
+        (target.current.x - targetSmoothed.current.x) * targetEase;
+      targetSmoothed.current.y +=
+        (target.current.y - targetSmoothed.current.y) * targetEase;
+
+      // If the pointer stops firing events, decay the instantaneous speed.
+      speedInstant.current *= 0.92;
+
+      // Smooth speed so ripples decay naturally ("fade" between deformation states).
+      speedSmoothed.current +=
+        (speedInstant.current - speedSmoothed.current) * 0.06;
+      const intensity = Math.min(1, speedSmoothed.current / 0.9);
+
+      // Drive watery displacement from movement intensity (smoothly; no seed jumps).
+      const desiredFreqX = 0.01 + 0.032 * intensity;
+      const desiredFreqY = 0.016 + 0.032 * intensity;
+      const desiredDisp = 12 + 70 * intensity;
+
+      water.current.freqX += (desiredFreqX - water.current.freqX) * 0.08;
+      water.current.freqY += (desiredFreqY - water.current.freqY) * 0.08;
+      water.current.disp += (desiredDisp - water.current.disp) * 0.08;
+
+      if (turbulence) {
+        const wobble = 0.0025;
+        const fx = water.current.freqX + Math.sin(now * 0.0011) * wobble;
+        const fy = water.current.freqY + Math.cos(now * 0.001) * wobble;
+        turbulence.setAttribute(
+          "baseFrequency",
+          `${fx.toFixed(4)} ${fy.toFixed(4)}`,
+        );
+      }
+      if (displacement) {
+        displacement.setAttribute("scale", water.current.disp.toFixed(1));
+      }
+
+      for (let i = 0; i < bubbleConfigs.length; i++) {
+        const el = bubbleRefs.current[i];
+        if (!el) continue;
+
+        const cfg = bubbleConfigs[i];
+        const driftX = Math.sin(now * 0.0007 + cfg.phase) * cfg.drift;
+        const driftY = Math.cos(now * 0.0006 + cfg.phase) * cfg.drift;
+        const desiredX = targetSmoothed.current.x + driftX;
+        const desiredY = targetSmoothed.current.y + driftY;
+
+        currents.current[i].x += (desiredX - currents.current[i].x) * cfg.lag;
+        currents.current[i].y += (desiredY - currents.current[i].y) * cfg.lag;
+
+        el.style.setProperty("--blob-morph-duration", `${14 - intensity * 9}s`);
+
+        const motionScale = 1 + intensity * (0.09 - i * 0.015);
+        const motionRotate = (i === 1 ? -1 : 1) * intensity * 6;
+        el.style.transform =
+          `translate3d(${currents.current[i].x}px, ${currents.current[i].y}px, 0) translate3d(-50%, -50%, 0) scale(var(--blob-scale, 1)) rotate(var(--blob-rotate, 0deg)) rotate(${motionRotate.toFixed(2)}deg) scale(${motionScale.toFixed(3)})`;
+      }
+
+      rafId = window.requestAnimationFrame(follow);
+    };
+
+    rafId = window.requestAnimationFrame(follow);
+
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("resize", setCenter);
+      window.cancelAnimationFrame(rafId);
+    };
+  }, []);
+
+  return (
+    <>
+      <svg aria-hidden="true" className="absolute h-0 w-0">
+        <filter id="blob-water" x="-40%" y="-40%" width="180%" height="180%">
+          <feTurbulence
+            ref={turbulenceRef}
+            type="fractalNoise"
+            baseFrequency="0.010 0.016"
+            numOctaves={2}
+            seed={2}
+            result="noise"
+          />
+          <feDisplacementMap
+            ref={displacementRef}
+            in="SourceGraphic"
+            in2="noise"
+            scale={14}
+            xChannelSelector="R"
+            yChannelSelector="G"
+          />
+          <feGaussianBlur stdDeviation="22" />
+        </filter>
+      </svg>
+
+      <div
+        ref={(el) => {
+          bubbleRefs.current[0] = el;
+        }}
+        aria-hidden="true"
+        style={{ filter: "url(#blob-water)", width: 260, height: 260, opacity: 0.55 }}
+        className="blob-morph pointer-events-none absolute left-0 top-0 select-none bg-gradient-to-br from-blue-600 via-sky-500 to-cyan-300 mix-blend-multiply"
+      />
+      <div
+        ref={(el) => {
+          bubbleRefs.current[1] = el;
+        }}
+        aria-hidden="true"
+        style={{
+          filter: "url(#blob-water)",
+          width: 220,
+          height: 220,
+          opacity: 0.38,
+          animationDelay: "-3.5s",
+        }}
+        className="blob-morph pointer-events-none absolute left-0 top-0 select-none bg-gradient-to-br from-blue-600 via-sky-500 to-cyan-300 mix-blend-multiply"
+      />
+      <div
+        ref={(el) => {
+          bubbleRefs.current[2] = el;
+        }}
+        aria-hidden="true"
+        style={{
+          filter: "url(#blob-water)",
+          width: 180,
+          height: 180,
+          opacity: 0.26,
+          animationDelay: "-7s",
+        }}
+        className="blob-morph pointer-events-none absolute left-0 top-0 select-none bg-gradient-to-br from-blue-600 via-sky-500 to-cyan-300 mix-blend-multiply"
+      />
+    </>
   );
 }
