@@ -64,10 +64,11 @@ function WaitlistBar() {
               type="email"
               inputMode="email"
               autoComplete="email"
-              placeholder="join the waitlist..."
+              placeholder="JOIN THE WAITLIST..."
               required
               disabled={isSubmitting}
-              className="w-full bg-transparent text-lg text-foreground placeholder:text-foreground/40 outline-none disabled:opacity-60"
+              className="w-full bg-transparent text-lg uppercase text-foreground placeholder:text-foreground/40 outline-none disabled:opacity-60"
+              style={{ fontFamily: "'Roboto', sans-serif" }}
               aria-label="Email address"
             />
           </div>
