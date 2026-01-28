@@ -33,6 +33,7 @@ function WaitlistBar() {
       if (res.ok) {
         setEmail("");
         setMessage("You're on the waitlist.");
+        (document.activeElement as HTMLElement)?.blur();
         return;
       }
 
